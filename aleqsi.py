@@ -904,6 +904,7 @@ def def_rman_stmt(methname, stmtname, argtypes) :
 #end def_rman_stmt
 
 matrix_arg = [conv_num] * 16
+basis_arg = matrix_arg
 for methname, stmtname, argtypes in \
     (
         ("declare", "Declare", [conv_str, conv_str]),
@@ -984,7 +985,7 @@ for methname, stmtname, argtypes in \
         ("points_polygons", "PointsPolygons", [conv_int_array, conv_int_array]),
         ("points_general_polygons", "PointsGeneralPolygons", [conv_int_array, conv_int_array, conv_int_array]),
 
-        # ("basis", "Basis", [TBD basis, conv_int, TBD basis, conv_int]),
+        # ("basis", "Basis", [basis_arg, conv_int, basis_arg, conv_int]),
         ("patch", "Patch", [conv_str]),
         ("patch_mesh", "PatchMesh", [conv_str, conv_int, conv_str, conv_int, conv_int]),
         ("nu_patch", "NuPatch", [conv_int, conv_int, conv_num_array, conv_num, conv_num, conv_int, conv_int, conv_num_array, conv_num, conv_num]),
@@ -1025,6 +1026,6 @@ for methname, stmtname, argtypes in \
     def_rman_stmt(methname, stmtname, argtypes)
 #end for
 del methname, stmtname, argtypes
-del matrix_arg
+del matrix_arg, basis_arg
 
 del def_rman_stmt # your work is done
