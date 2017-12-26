@@ -888,6 +888,9 @@ class Context :
 def def_rman_stmt(methname, stmtname, argtypes) :
 
     def gen_stmt(self, *args, **kwargs) :
+        if len(args) == 1 and isinstance(args[0], (list, tuple)) and len(argtypes) != 1 :
+            args = args[0]
+        #end if
         if len(args) != len(argtypes) :
             raise TypeError("stmt %s expects %d positional args" % (stmtname, len(argtypes)))
         #end if
