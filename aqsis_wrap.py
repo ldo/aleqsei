@@ -322,7 +322,7 @@ class Context :
 
             def do_auto_include() :
                 nonlocal line
-                readarchive_match = readarchive_pat.match(line)
+                readarchive_match = self._readarchive_pat.match(line)
                 if readarchive_match != None :
                     parms = shlex.split(readarchive_match.group(1))
                     if len(parms) != 1 :
@@ -416,7 +416,7 @@ class Context :
                 universal_newlines = True,
                 cwd = self._parent._workdir,
                 timeout = self._parent.timeout
-              )
+,              )
             print(aqsis_output) # debug
             if len(self._imgfile_names) != 0 :
                 for imgfile_name in self._imgfile_names :
