@@ -903,6 +903,7 @@ def def_rman_stmt(methname, stmtname, argtypes) :
     setattr(Context.Rib, methname, gen_stmt)
 #end def_rman_stmt
 
+matrix_arg = [conv_num] * 16
 for methname, stmtname, argtypes in \
     (
         ("declare", "Declare", [conv_str, conv_str]),
@@ -953,8 +954,8 @@ for methname, stmtname, argtypes in \
         ("shading_rate", "ShadingRate", [conv_num]),
         ("shading_interpolation", "ShadingInterpolation", [conv_str]),
         ("matte", "Matte", [conv_bool]),
-        # ("bound, "Bound", [TBD bound]),
-        # ("detail, "Detail", [TBD bound]),
+        ("bound", "Bound", [conv_num, conv_num, conv_num, conv_num, conv_num, conv_num]),
+        ("detail", "Detail", [conv_num, conv_num, conv_num, conv_num, conv_num, conv_num]),
         ("detail_range", "DetailRange", [conv_num, conv_num, conv_num, conv_num]),
         ("geometric_approximation", "GeometricApproximation", [conv_str, conv_num]),
         ("orientation", "Orientation", [conv_str]),
@@ -962,8 +963,8 @@ for methname, stmtname, argtypes in \
         ("sides", "Sides", [conv_int]),
 
         ("identity", "Identity", []),
-        # ("transform", "Transform", [TBD matrix]),
-        # ("concat_transform", "ConcatTransform", [TBD matrix]),
+        ("transform", "Transform", matrix_arg),
+        ("concat_transform", "ConcatTransform", matrix_arg),
         ("translate", "Translate", [conv_num, conv_num, conv_num]), # TBD 3-vector?
         ("rotate", "Rotate", [conv_num, conv_num, conv_num, conv_num]), # TBD 3-vector?
         ("scale", "Scale", [conv_num, conv_num, conv_num]), # TBD 3-vector?
@@ -1024,5 +1025,6 @@ for methname, stmtname, argtypes in \
     def_rman_stmt(methname, stmtname, argtypes)
 #end for
 del methname, stmtname, argtypes
+del matrix_arg
 
 del def_rman_stmt # your work is done
