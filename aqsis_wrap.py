@@ -234,6 +234,7 @@ class Context :
         __slots__ = \
             (
                 "_parent",
+                "nr_colour_samples",
                 "_last_object_nr",
                 "_display",
                 "_imgfile_names",
@@ -259,6 +260,7 @@ class Context :
             self._display_pat = re.compile(r"^\s*display\s*(.+)$", flags = re.IGNORECASE)
             self._readarchive_pat = re.compile(r"^\s*readarchive\s*(.+)$", flags = re.IGNORECASE)
             self._parent = parent
+            self.nr_colour_samples = 3
             self._last_object_nr = 0
             self._display = display
             self._imgfile_names = []
@@ -441,6 +443,41 @@ class Context :
 
         # all the rest of the RenderMan statement-generating methods
         # are defined by calling def_rman_stmt (below), except the following
+
+        def colour_samples(self, to_rgb, from_rgb) :
+            if (
+                    not isinstance(to_rgb, (list, tuple))
+                or
+                    not isinstance(from_rgb, (list_tuple))
+                or
+                    len(to_rgb) != len(from_rgb)
+                or
+                    len(to_rgb) % 3 != 0
+                or
+                    len(to_rgb) == 0
+            ) :
+                raise TypeError("args must be arrays of equal nonzero size, being a multiple of 3")
+            #end if
+            self.nr_colour_samples = len(to_rgb) // 3
+            self._write_stmt("ColorSamples", [conv_num_array.conv(to_rgb), conv_num_array.conv(from_rgb)], {})
+        #end colour_samples
+
+        def colour(self, *args) :
+            if len(args) != self.nr_colour_samples or not all(isinstance(c, Real) for c in args) :
+                raise TypeError("expecting %d float args" % self.nr_colour_samples)
+            #end if
+            self._write_stmt("Color", [conv_num.conv(self._parent, c) for c in args], {})
+        #end colour
+
+        def opacity(self, *args) :
+            if len(args) != self.nr_colour_samples and len(args) != 1 or not all(isinstance(c, Real) for c in args) :
+                raise TypeError("expecting 1 or %d float args" % self.nr_colour_samples)
+            #end if
+            if len(args) == 1 :
+                args = [args[0]] * self.nr_colour_samples
+            #end if
+            self._write_stmt("Opacity", [conv_num.conv(self._parent, c) for c in args], {})
+        #end opacity
 
         def object_begin(self) :
             "returns ObjectHandle, not self!"
@@ -895,13 +932,13 @@ for methname, stmtname, argtypes in \
         ("quantize", "Quantize", [conv_str, conv_int, conv_int, conv_int, conv_num]),
         # ("display", "Display") TBD
         ("hider", "Hider", [conv_str]),
-        # ("colour_samples", "ColorSamples", [conv_int, conv_num_array TBD, conv_num_array]), TBD lengths of arrays must match first arg
+        # ("colour_samples", "ColorSamples") treated specially
 
         ("option", "Option", [conv_str]),
         ("attribute_begin", "AttributeBegin", []),
         ("attribute_end", "AttributeEnd", []),
-        # ("colour", "Color", [TBD array of 3 floats, also allow qah.Colour?]),
-        # ("opacity", "Opacity", [TBD array of 3 floats, also allow 1 float?]),
+        # ("colour", "Color") treated specially
+        # ("opacity", "Opacity") treated specially
 
         ("texture_coordinates", "TextureCoordinates", [conv_num, conv_num, conv_num, conv_num, conv_num, conv_num, conv_num, conv_num]),
         ("light_source", "LightSource", [conv_str, conv_int]),
