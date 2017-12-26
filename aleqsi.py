@@ -16,7 +16,8 @@ import subprocess
 import tempfile
 import shutil
 import shlex
-import qahirah as qah
+from qahirah import \
+    Colour
 
 @enum.unique
 class SEARCH_TYPE(enum.Enum) :
@@ -466,10 +467,18 @@ class Context :
         #end colour_samples
 
         def colour(self, *args) :
-            if len(args) != self.nr_colour_samples or not all(isinstance(c, Real) for c in args) :
+            opacity = None
+            if self.nr_colour_samples == 3 and len(args) == 1 and isinstance(args[0], Colour) :
+                colour = args[0]
+                opacity = colour.a
+                args = tuple(colour[:3])
+            elif len(args) != self.nr_colour_samples or not all(isinstance(c, Real) for c in args) :
                 raise TypeError("expecting %d float args" % self.nr_colour_samples)
             #end if
             self._write_stmt("Color", [conv_num.conv(self._parent, c) for c in args], {})
+            if opacity != None :
+                self.opacity(opacity)
+            #end if
         #end colour
 
         def opacity(self, *args) :
