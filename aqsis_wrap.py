@@ -5,6 +5,7 @@ running the tools.
 Also needed: “convert” command from ImageMagick/GraphicsMagick.
 """
 
+import sys
 import enum
 from numbers import \
     Real
@@ -153,6 +154,7 @@ class Context :
             "timeout",
             "images",
             "precision",
+            "debug",
             "keep_temps",
         )
 
@@ -167,6 +169,7 @@ class Context :
         self._imgfile_nr = 0
         self.images = []
         self.precision = 7
+        self.debug = False
         self.keep_temps = False
     #end __init__
 
@@ -416,8 +419,10 @@ class Context :
                 universal_newlines = True,
                 cwd = self._parent._workdir,
                 timeout = self._parent.timeout
-,              )
-            print(aqsis_output) # debug
+              )
+            if self._parent.debug :
+                sys.stderr.write(aqsis_output)
+            #end if
             if len(self._imgfile_names) != 0 :
                 for imgfile_name in self._imgfile_names :
                     self._parent._collect_display(imgfile_name)
@@ -601,11 +606,11 @@ class Context :
             cwd = self._workdir
           )
         slproc_output, _ = slproc.communicate(timeout = self.timeout)
-        if slproc_output != None :
-            print(slproc_output) # debug
+        if self.debug and slproc_output != None :
+            sys.stderr.write(slproc_output)
         #end if
         if slproc.returncode != 0 :
-            print("compilation of shader “%s” returned %d" % (filename, slproc.returncode))
+            sys.stderr.write("compilation of shader “%s” returned %d\n" % (filename, slproc.returncode))
         #end if
     #end _compile_shader
 
@@ -731,7 +736,9 @@ class Context :
             cwd = self._workdir,
             timeout = self.timeout
           )
-        print(teqser_output) # debug
+        if self.debug :
+            sys.stderr.write(teqser_output)
+        #end if
     #end define_texture
 
     def define_texture_file(self, name, *args, **kwargs) :
@@ -756,7 +763,9 @@ class Context :
             cwd = self._workdir,
             timeout = self.timeout
           )
-        print(teqser_output) # debug
+        if self.debug :
+            sys.stderr.write(teqser_output)
+        #end if
     #end define_texture_file
 
     def set_search_path(self, search_type, items) :
