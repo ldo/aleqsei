@@ -903,8 +903,10 @@ def def_rman_stmt(methname, stmtname, argtypes) :
     setattr(Context.Rib, methname, gen_stmt)
 #end def_rman_stmt
 
+vector_arg = [conv_num] * 3
 matrix_arg = [conv_num] * 16
-basis_arg = matrix_arg
+conv_basis = ArrayConverter("basis", conv_num, 16)
+conv_point = ArrayConverter("basis", conv_num, 3)
 for methname, stmtname, argtypes in \
     (
         ("declare", "Declare", [conv_str, conv_str]),
@@ -966,9 +968,9 @@ for methname, stmtname, argtypes in \
         ("identity", "Identity", []),
         ("transform", "Transform", matrix_arg),
         ("concat_transform", "ConcatTransform", matrix_arg),
-        ("translate", "Translate", [conv_num, conv_num, conv_num]), # TBD 3-vector?
-        ("rotate", "Rotate", [conv_num, conv_num, conv_num, conv_num]), # TBD 3-vector?
-        ("scale", "Scale", [conv_num, conv_num, conv_num]), # TBD 3-vector?
+        ("translate", "Translate", vector_arg),
+        ("rotate", "Rotate", vector_arg),
+        ("scale", "Scale", vector_arg),
         ("skew", "Skew", [conv_num, conv_num, conv_num, conv_num, conv_num, conv_num, conv_num]),
         ("coordinate_system", "CoordinateSystem", [conv_str]),
         ("coord_sys_transform", "CoordSysTransform", [conv_str]),
@@ -985,7 +987,7 @@ for methname, stmtname, argtypes in \
         ("points_polygons", "PointsPolygons", [conv_int_array, conv_int_array]),
         ("points_general_polygons", "PointsGeneralPolygons", [conv_int_array, conv_int_array, conv_int_array]),
 
-        # ("basis", "Basis", [basis_arg, conv_int, basis_arg, conv_int]),
+        # ("basis", "Basis", [conv_basis, conv_int, conv_basis, conv_int]),
         ("patch", "Patch", [conv_str]),
         ("patch_mesh", "PatchMesh", [conv_str, conv_int, conv_str, conv_int, conv_int]),
         ("nu_patch", "NuPatch", [conv_int, conv_int, conv_num_array, conv_num, conv_num, conv_int, conv_int, conv_num_array, conv_num, conv_num]),
@@ -996,7 +998,7 @@ for methname, stmtname, argtypes in \
         ("sphere", "Sphere", [conv_num, conv_num, conv_num, conv_num]),
         ("cone", "Cone", [conv_num, conv_num, conv_num]),
         ("cylinder", "Cylinder", [conv_num, conv_num, conv_num, conv_num]),
-        # ("hyperboloid", "Hyperboloid", [conv_point TBD, conv_point TBD, conv_num]),
+        ("hyperboloid", "Hyperboloid", [conv_point, conv_point, conv_num]),
         ("paraboloid", "Paraboloid", [conv_num, conv_num, conv_num, conv_num]),
         ("disk", "Disk", [conv_num, conv_num, conv_num]),
         ("torus", "Torus", [conv_num, conv_num, conv_num, conv_num, conv_num]),
@@ -1026,6 +1028,6 @@ for methname, stmtname, argtypes in \
     def_rman_stmt(methname, stmtname, argtypes)
 #end for
 del methname, stmtname, argtypes
-del matrix_arg, basis_arg
+del vector_arg, matrix_arg, conv_basis, conv_point
 
 del def_rman_stmt # your work is done
