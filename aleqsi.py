@@ -471,7 +471,7 @@ class Context :
             if self.nr_colour_samples == 3 and len(args) == 1 and isinstance(args[0], Colour) :
                 colour = args[0]
                 opacity = colour.a
-                args = tuple(colour[:3])
+                args = colour[:3]
             elif len(args) != self.nr_colour_samples or not all(isinstance(c, Real) for c in args) :
                 raise TypeError("expecting %d float args" % self.nr_colour_samples)
             #end if
