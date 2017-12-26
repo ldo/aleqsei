@@ -125,6 +125,9 @@ conv_int_array = ArrayConverter("int_array", conv_int)
 conv_num_array = ArrayConverter("num_array", conv_num)
 conv_str_array = ArrayConverter("int_array", conv_str)
 
+conv_basis = ArrayConverter("basis", conv_num, 16)
+conv_point = ArrayConverter("point", conv_num, 3)
+
 def valid_bytes(b) :
     "does b have a suitable type for an image bytes object."
     return \
@@ -905,8 +908,6 @@ def def_rman_stmt(methname, stmtname, argtypes) :
 
 vector_arg = [conv_num] * 3
 matrix_arg = [conv_num] * 16
-conv_basis = ArrayConverter("basis", conv_num, 16)
-conv_point = ArrayConverter("basis", conv_num, 3)
 for methname, stmtname, argtypes in \
     (
         ("declare", "Declare", [conv_str, conv_str]),
@@ -1028,6 +1029,6 @@ for methname, stmtname, argtypes in \
     def_rman_stmt(methname, stmtname, argtypes)
 #end for
 del methname, stmtname, argtypes
-del vector_arg, matrix_arg, conv_basis, conv_point
+del vector_arg, matrix_arg
 
 del def_rman_stmt # your work is done
