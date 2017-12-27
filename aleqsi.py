@@ -1039,7 +1039,7 @@ for methname, stmtname, argtypes in \
         ("torus", "Torus", [conv_num, conv_num, conv_num, conv_num, conv_num]),
 
         ("points", "Points", [conv_int]),
-        ("curves", "Curves", [conv_str, conv_int, conv_int_array, conv_str]),
+        ("curves", "Curves", [conv_str, conv_int_array, conv_str]),
         ("blobby", "Blobby", [conv_int, conv_int, conv_int_array, conv_num, conv_num_array, conv_int, conv_str_array]),
 
         # ("procedural", "Procedural" [conv_str, conv_str_array, bound TBD]),
