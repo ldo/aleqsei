@@ -98,9 +98,9 @@ class ArrayConverter(Converter) :
         #end if
     #end check
 
-    def conv(self, val) :
+    def conv(self, ctx, val) :
         return \
-            type(val)(self.elt_conv(v) for v in val)
+            "[" + " ".join(self.elt_conv.conv(ctx, v) for v in val) + "]"
     #end conv
 
 #end ArrayConverter
