@@ -901,6 +901,10 @@ class Context :
 def def_rman_stmt(methname, stmtname, argtypes) :
 
     def gen_stmt(self, *args, **kwargs) :
+        if len(args) == len(argtypes) + 1 and len(kwargs) == 0 and isinstance(args[-1], dict) :
+            kwargs = args[-1]
+            args = args[:-1]
+        #end if
         if len(args) == 1 and isinstance(args[0], (list, tuple)) and len(argtypes) != 1 :
             args = args[0]
         #end if
