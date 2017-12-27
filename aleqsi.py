@@ -1022,7 +1022,7 @@ for methname, stmtname, argtypes in \
         ("points_polygons", "PointsPolygons", [conv_int_array, conv_int_array]),
         ("points_general_polygons", "PointsGeneralPolygons", [conv_int_array, conv_int_array, conv_int_array]),
 
-        # ("basis", "Basis", [conv_basis, conv_int, conv_basis, conv_int]),
+        ("basis", "Basis", [conv_basis, conv_int, conv_basis, conv_int]),
         ("patch", "Patch", [conv_str]),
         ("patch_mesh", "PatchMesh", [conv_str, conv_int, conv_str, conv_int, conv_int]),
         ("nu_patch", "NuPatch", [conv_int, conv_int, conv_num_array, conv_num, conv_num, conv_int, conv_int, conv_num_array, conv_num, conv_num]),
