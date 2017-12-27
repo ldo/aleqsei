@@ -529,6 +529,8 @@ class Context :
                 raise RuntimeError("output shader stream has been closed")
             #end if
             self._out.write(s)
+            return \
+                self
         #end write
 
         def writeln(self, stmt) :
@@ -538,6 +540,8 @@ class Context :
             #end if
             self._out.write(stmt)
             self._out.write("\n")
+            return \
+                self
         #end writeln
 
         def close(self) :
