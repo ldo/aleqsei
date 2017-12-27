@@ -990,7 +990,7 @@ for methname, stmtname, argtypes in \
         ("transform", "Transform", matrix_arg),
         ("concat_transform", "ConcatTransform", matrix_arg),
         ("translate", "Translate", vector_arg),
-        ("rotate", "Rotate", vector_arg),
+        ("rotate", "Rotate", [conv_num] + vector_arg),
         ("scale", "Scale", vector_arg),
         ("skew", "Skew", [conv_num, conv_num, conv_num, conv_num, conv_num, conv_num, conv_num]),
         ("coordinate_system", "CoordinateSystem", [conv_str]),
