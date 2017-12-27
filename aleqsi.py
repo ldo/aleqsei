@@ -639,14 +639,14 @@ class Context :
             self.Rib(self, outfile_name, display)
     #end new_rib
 
-    def compile_rib(self, filename, display = DISPLAY.FRAMEBUFFER) :
+    def compile_rib_file(self, filename, display = DISPLAY.FRAMEBUFFER) :
         rib = self.new_rib(display)
         # need to copy file line by line to allow autoparsing of display and include lines
         for line in open(filename, "r") :
             rib.writeln(line.rstrip("\n"))
         #end for
         rib.close()
-    #end compile_rib
+    #end compile_rib_file
 
     def _compile_shader(self, filename) :
         slproc = subprocess.Popen \
@@ -673,7 +673,7 @@ class Context :
             self.Shader(self, shader_filename, open(shader_filename, "w"))
     #end new_shader
 
-    def compile_shader(self, filename) :
+    def compile_shader_file(self, filename) :
         name = os.path.basename(filename)
         name, ext = os.path.splitext(name)
         if ext != ".sl" :
@@ -685,7 +685,7 @@ class Context :
             shader.write(line)
         #end for
         shader.close()
-    #end compile_shader
+    #end compile_shader_file
 
     def _teqser_args(self, kwargs, doing_envcube) :
         valid_opts = \
