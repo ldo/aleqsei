@@ -342,7 +342,7 @@ class Context :
                           )
                     #end if
                     line = None
-                    filename = self.find_file(parms[0], SEARCH_TYPE.ARCHIVE)
+                    filename = self._parent.find_file(parms[0], SEARCH_TYPE.ARCHIVE)
                     save_infilename = self._infilename
                     save_linenr = self._linenr
                     self._infilename = filename
@@ -639,13 +639,25 @@ class Context :
             self.Rib(self, outfile_name, display)
     #end new_rib
 
-    def compile_rib_file(self, filename, display = DISPLAY.FRAMEBUFFER) :
+    def _compile_rib(self, iter, display, infilename) :
         rib = self.new_rib(display)
-        # need to copy file line by line to allow autoparsing of display and include lines
-        for line in open(filename, "r") :
+        # need to copy line by line to allow autoparsing of display and include lines
+        rib._infilename = infilename
+        rib._linenr = 0
+        for line in iter :
+            rib._linenr += 1
             rib.writeln(line.rstrip("\n"))
         #end for
         rib.close()
+    #end _compile_rib
+
+    def compile_rib(self, iter, display = DISPLAY.FRAMEBUFFER) :
+        self._compile_rib(iter, display, "<iterator>")
+    #end compile_rib
+
+    def compile_rib_file(self, filename, display = DISPLAY.FRAMEBUFFER) :
+        fullpath = self.find_file(filename, SEARCH_TYPE.SOURCE)
+        self._compile_rib(open(fullpath, "r"), display, filename)
     #end compile_rib_file
 
     def _compile_shader(self, filename) :
@@ -679,9 +691,10 @@ class Context :
         if ext != ".sl" :
             raise RManSyntaxError("shader filename does not end in .sl")
         #end if
+        fullpath = self.find_file(filename, SEARCH_TYPE.SOURCE)
         shader = self.new_shader(name)
         # instead of copying, should I compile direct from original source file?
-        for line in open(filename, "r") :
+        for line in open(fullpath, "r") :
             shader.write(line)
         #end for
         shader.close()
@@ -858,6 +871,7 @@ class Context :
                 if search != None :
                     for try_dir in search.split(":") :
                         if try_dir == "&" :
+                            self._init_temp()
                             try_path.append(os.path.join(self._workdir, file_arg))
                         else :
                             try_path.append(os.path.join(try_dir, file_arg))
