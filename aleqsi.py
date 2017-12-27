@@ -659,7 +659,7 @@ class Context :
             cwd = self._workdir
           )
         slproc_output, _ = slproc.communicate(timeout = self.timeout)
-        if self.debug and slproc_output != None :
+        if (self.debug or slproc.returncode != 0) and slproc_output != None :
             sys.stderr.write(slproc_output)
         #end if
         if slproc.returncode != 0 :
