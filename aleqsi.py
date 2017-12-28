@@ -671,11 +671,16 @@ class Context :
             cwd = self._workdir
           )
         slproc_output, _ = slproc.communicate(timeout = self.timeout)
-        if (self.debug or slproc.returncode != 0) and slproc_output != None :
-            sys.stderr.write(slproc_output)
-        #end if
-        if slproc.returncode != 0 :
-            sys.stderr.write("compilation of shader “%s” returned %d\n" % (filename, slproc.returncode))
+        if slproc.returncode == 0 :
+            if self.debug and slproc_output != None :
+                sys.stderr.write(slproc_output)
+            #end if
+        else :
+            raise RManSyntaxError \
+              (
+                "shader compilation failed with code %d" % slproc.returncode,
+                (filename, 0, None, slproc_output)
+              )
         #end if
     #end _compile_shader
 
