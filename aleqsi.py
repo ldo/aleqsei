@@ -32,7 +32,7 @@ class SEARCH_TYPE(enum.Enum) :
 
 class RManSyntaxError(SyntaxError) :
 
-    def __init__(*args) :
+    def __init__(self, *args) :
         super().__init__(*args)
     #end __init__
 
