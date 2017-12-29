@@ -126,7 +126,6 @@ conv_int_array = ArrayConverter("int_array", conv_int)
 conv_num_array = ArrayConverter("num_array", conv_num)
 conv_str_array = ArrayConverter("int_array", conv_str)
 
-conv_basis = ArrayConverter("basis", conv_num, 16)
 conv_point = ArrayConverter("point", conv_num, 3)
 
 def valid_bytes(b) :
@@ -490,6 +489,22 @@ class Context :
             #end if
             self._write_stmt("Opacity", [conv_num.conv(self._parent, c) for c in args], {})
         #end opacity
+
+        def basis(self, ubasis, ustep, vbasis, vstep) :
+            if not all \
+              (
+                isinstance(b, str) or isinstance(b, (tuple, list)) and len(b) == 16
+                for b in (ubasis, vbasis)
+              ) :
+                raise TypeError("ubasis and vbasis must be basis names or 16-element matrices")
+            #end if
+            bases = tuple \
+              (
+                (conv_num_array, conv_str)[isinstance(b, str)].conv(self._parent, b)
+                for b in (ubasis, vbasis)
+              )
+            self._write_stmt("Basis", [bases[0], conv_num.conv(self._parent, ustep), bases[1], conv_num.conv(self._parent, vstep)], {})
+        #end basis
 
         def object_begin(self) :
             "returns ObjectHandle, not self!"
@@ -1027,7 +1042,7 @@ for methname, stmtname, argtypes in \
         ("points_polygons", "PointsPolygons", [conv_int_array, conv_int_array]),
         ("points_general_polygons", "PointsGeneralPolygons", [conv_int_array, conv_int_array, conv_int_array]),
 
-        ("basis", "Basis", [conv_basis, conv_int, conv_basis, conv_int]),
+        # ("basis", "Basis") handled specially
         ("patch", "Patch", [conv_str]),
         ("patch_mesh", "PatchMesh", [conv_str, conv_int, conv_str, conv_int, conv_int]),
         ("nu_patch", "NuPatch", [conv_int, conv_int, conv_num_array, conv_num, conv_num, conv_int, conv_int, conv_num_array, conv_num, conv_num]),
