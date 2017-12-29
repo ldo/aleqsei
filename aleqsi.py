@@ -463,6 +463,8 @@ class Context :
             #end if
             self.nr_colour_samples = len(to_rgb) // 3
             self._write_stmt("ColorSamples", [conv_num_array.conv(self._parent, to_rgb), conv_num_array.conv(self._parent, from_rgb)], {})
+            return \
+                self
         #end colour_samples
 
         def colour(self, *args) :
@@ -478,6 +480,8 @@ class Context :
             if opacity != None :
                 self.opacity(opacity)
             #end if
+            return \
+                self
         #end colour
 
         def opacity(self, *args) :
@@ -488,6 +492,8 @@ class Context :
                 args = [args[0]] * self.nr_colour_samples
             #end if
             self._write_stmt("Opacity", [conv_num.conv(self._parent, c) for c in args], {})
+            return \
+                self
         #end opacity
 
         def basis(self, ubasis, ustep, vbasis, vstep) :
@@ -504,6 +510,8 @@ class Context :
                 for b in (ubasis, vbasis)
               )
             self._write_stmt("Basis", [bases[0], conv_num.conv(self._parent, ustep), bases[1], conv_num.conv(self._parent, vstep)], {})
+            return \
+                self
         #end basis
 
         def object_begin(self) :
