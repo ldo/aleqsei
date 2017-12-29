@@ -713,6 +713,20 @@ class Context :
             self.Shader(self, shader_filename, open(shader_filename, "w"))
     #end new_shader
 
+    def compile_shader(self, name, src) :
+        shader = self.new_shader(name)
+        if isinstance(src, str) :
+            shader.write(src)
+        elif hasattr(src, "__next__") or hasattr(src, "__iter__") :
+            for line in src :
+                shader.write(line)
+            #end for
+        else :
+            raise TypeError("src must be string or iterable of strings")
+        #end if
+        shader.close()
+    #end compile_shader
+
     def compile_shader_file(self, filename) :
         name = os.path.basename(filename)
         name, ext = os.path.splitext(name)
