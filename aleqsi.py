@@ -452,7 +452,7 @@ class Context :
             if (
                     not isinstance(to_rgb, (list, tuple))
                 or
-                    not isinstance(from_rgb, (list_tuple))
+                    not isinstance(from_rgb, (list, tuple))
                 or
                     len(to_rgb) != len(from_rgb)
                 or
@@ -463,7 +463,7 @@ class Context :
                 raise TypeError("args must be arrays of equal nonzero size, being a multiple of 3")
             #end if
             self.nr_colour_samples = len(to_rgb) // 3
-            self._write_stmt("ColorSamples", [conv_num_array.conv(to_rgb), conv_num_array.conv(from_rgb)], {})
+            self._write_stmt("ColorSamples", [conv_num_array.conv(self._parent, to_rgb), conv_num_array.conv(self._parent, from_rgb)], {})
         #end colour_samples
 
         def colour(self, *args) :
