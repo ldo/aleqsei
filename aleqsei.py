@@ -181,7 +181,7 @@ class Context :
           (
             subprocess.check_output
               (
-                args = ("convert", filename, "png:/dev/stdout"),
+                args = ("convert", filename, "png:-"),
                 universal_newlines = False,
                 timeout = self.timeout
               )
