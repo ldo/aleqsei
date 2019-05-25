@@ -901,6 +901,7 @@ class Context :
             raise TypeError("search_type must be one of the SEARCH_TYPE enum values.")
         #end if
         file_arg = filename
+        self._init_temp()
         if not file_arg.startswith("/") :
             search1 = self.search_path[search_type]
             if search_type != SEARCH_TYPE.RESOURCE :
@@ -913,7 +914,6 @@ class Context :
                 if search != None :
                     for try_dir in search.split(":") :
                         if try_dir == "&" :
-                            self._init_temp()
                             try_path.append(os.path.join(self._workdir, file_arg))
                         else :
                             try_path.append(os.path.join(try_dir, file_arg))
