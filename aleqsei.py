@@ -14,6 +14,7 @@ import array
 import re
 import subprocess
 import tempfile
+import gzip
 import shutil
 import shlex
 from qahirah import \
@@ -176,16 +177,27 @@ class Context :
         self.keep_temps = False
     #end __init__
 
+    @staticmethod
+    def _open_read(filename) :
+        # opens a (possibly compressed) text file for reading.
+        return \
+            (open, gzip.open)[filename.endswith(".gz")](filename, "rt")
+    #end _open_read
+
     def _collect_display(self, filename) :
-        self.images.append \
-          (
-            subprocess.check_output
+        if os.path.isfile(filename) :
+            self.images.append \
               (
-                args = ("convert", filename, "png:-"),
-                universal_newlines = False,
-                timeout = self.timeout
+                subprocess.check_output
+                  (
+                    args = ("convert", filename, "png:-"),
+                    universal_newlines = False,
+                    timeout = self.timeout
+                  )
               )
-          )
+        else :
+            raise UserWarning("missing image file: %s" % repr(filename))
+        #end if
     #end _collect_display
 
     @enum.unique
@@ -345,7 +357,7 @@ class Context :
                     save_infilename = self._infilename
                     save_linenr = self._linenr
                     self._infilename = filename
-                    for line in open(filename, "r") :
+                    for line in self._parent._open_read(filename) :
                         self._linenr += 1
                         self.writeln(line.rstrip("\n"))
                     #end for
@@ -429,6 +441,7 @@ class Context :
                 sys.stderr.write(aqsis_output)
             #end if
             if len(self._imgfile_names) != 0 :
+                print("close: to convert: %s" % repr(self._imgfile_names)) # debug
                 for imgfile_name in self._imgfile_names :
                     self._parent._collect_display(imgfile_name)
                 #end for
@@ -680,7 +693,7 @@ class Context :
 
     def compile_rib_file(self, filename, display = DISPLAY.FRAMEBUFFER) :
         fullpath = self.find_file(filename, SEARCH_TYPE.SOURCE)
-        self._compile_rib(open(fullpath, "r"), display, filename)
+        self._compile_rib(self._open_read(fullpath), display, filename)
     #end compile_rib_file
 
     def _compile_shader(self, filename) :
@@ -736,7 +749,7 @@ class Context :
         fullpath = self.find_file(filename, SEARCH_TYPE.SOURCE)
         shader = self.new_shader(name)
         # instead of copying, should I compile direct from original source file?
-        for line in open(fullpath, "r") :
+        for line in self._open_read(fullpath) :
             shader.write(line)
         #end for
         shader.close()
