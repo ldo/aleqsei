@@ -1112,7 +1112,7 @@ for methname, stmtname, argtypes in \
         # TBD section 7.1 texture-map utilities?
 
         ("error_handler", "ErrorHandler", [conv_str]),
-        # ("read_archive, "ReadArchive", [conv_str]), TBD read and include lines myself
+        # ("read_archive", "ReadArchive", [conv_str]), TBD read and include lines myself
     ) \
 :
     def_rman_stmt(methname, stmtname, argtypes)
