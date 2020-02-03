@@ -354,16 +354,7 @@ class Context :
                           )
                     #end if
                     line = None
-                    filename = self._parent.find_file(parms[0], SEARCH_TYPE.ARCHIVE)
-                    save_infilename = self._infilename
-                    save_linenr = self._linenr
-                    self._infilename = filename
-                    for line in self._parent._open_read(filename) :
-                        self._linenr += 1
-                        self.writeln(line.rstrip("\n"))
-                    #end for
-                    self._infilename = save_infilename
-                    self._linenr = save_linenr
+                    self.read_archive(parms[0])
                 #end if
             #end do_auto_include
 
@@ -620,6 +611,22 @@ class Context :
                 {}
               )
         #end procedural
+
+        def read_archive(self, filename) :
+            filename = self._parent.find_file(filename, SEARCH_TYPE.ARCHIVE)
+            save_infilename = self._infilename
+            save_linenr = self._linenr
+            try :
+                self._infilename = filename
+                for line in self._parent._open_read(filename) :
+                    self._linenr += 1
+                    self.writeln(line.rstrip("\n"))
+                #end for
+            finally :
+                self._infilename = save_infilename
+                self._linenr = save_linenr
+            #end try
+        #end read_archive
 
     #end Rib
 
@@ -1188,7 +1195,7 @@ for methname, stmtname, argtypes in \
         # TBD section 7.1 texture-map utilities?
 
         ("error_handler", "ErrorHandler", [conv_str]),
-        # ("read_archive", "ReadArchive", [conv_str]), TBD read and include lines myself
+        # ("read_archive", "ReadArchive") handled specially
     ) \
 :
     def_rman_stmt(methname, stmtname, argtypes)
