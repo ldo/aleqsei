@@ -594,6 +594,33 @@ class Context :
             #end for
         #end motion
 
+        def procedural(self, procname, args, bound) :
+            # documented here: <https://renderman.pixar.com/resources/RenderMan_20/geometricPrimitives.html#riprocedural>
+            if (
+                    not isinstance(args, (list, tuple))
+                or
+                    not isinstance(bound, (list, tuple))
+                or
+                    not all(isinstance(a, str) for a in args)
+                or
+                    len(bound) != 6
+                or
+                    not all(isinstance(x, Real) for x in bound)
+            ) :
+                raise TypeError("args must be array of strings and bound must be array of 6 numbers")
+            #end if
+            self._write_stmt \
+              (
+                "Procedural",
+                [
+                    conv_str.conv(self._parent, procname),
+                    conv_str_array.conv(self._parent, args),
+                    conv_num_array.conv(self._parent, bound),
+                ],
+                {}
+              )
+        #end procedural
+
     #end Rib
 
     class Shader :
@@ -1147,7 +1174,7 @@ for methname, stmtname, argtypes in \
         ("curves", "Curves", [conv_str, conv_int_array, conv_str]),
         ("blobby", "Blobby", [conv_int, conv_int, conv_int_array, conv_num, conv_num_array, conv_int, conv_str_array]),
 
-        # ("procedural", "Procedural" [conv_str, conv_str_array, bound TBD]),
+        # ("procedural", "Procedural") handled specially
         ("geometry", "Geometry", [conv_str]),
 
         ("solid_begin", "SolidBegin", [conv_str]),
