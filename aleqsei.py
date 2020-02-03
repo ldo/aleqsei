@@ -618,6 +618,7 @@ class Context :
             save_linenr = self._linenr
             try :
                 self._infilename = filename
+                self._linenr = 0
                 for line in self._parent._open_read(filename) :
                     self._linenr += 1
                     self.writeln(line.rstrip("\n"))
