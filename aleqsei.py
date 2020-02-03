@@ -320,8 +320,8 @@ class Context :
                     and
                         len(display_parms) >= 3
                 ) :
-                    display_mode = display_parms[1].lower()
-                    if display_mode in ("file", "tiff", "framebuffer") :
+                    display_type = display_parms[1].lower()
+                    if display_type in ("file", "tiff", "framebuffer") :
                         imgfile_name = display_parms[0]
                         seen_imgfile = imgfile_name.startswith("+") # assume I’ve seen it before
                         if seen_imgfile :
@@ -330,11 +330,11 @@ class Context :
                         if (
                                 self._display == DISPLAY.ALL and not seen_imgfile
                             or
-                                self._display == DISPLAY.FRAMEBUFFER and display_mode == "framebuffer"
+                                self._display == DISPLAY.FRAMEBUFFER and display_type == "framebuffer"
                         ) :
                             self._imgfile_names.append(os.path.join(self._parent._workdir, imgfile_name))
                         #end if
-                        if display_mode == "framebuffer" :
+                        if display_type == "framebuffer" :
                             line = None
                         #end if
                     #end if
