@@ -260,6 +260,7 @@ class Context :
                 "_display_pat",
                 "_readarchive_pat",
             )
+        _cmds = {}
 
         class ObjectHandle :
             __slots__ = ("parent", "index")
@@ -544,6 +545,54 @@ class Context :
             return \
                 self
         #end object_instance
+
+        def motion(self, steps, *cmds) :
+            "defines moving items for purposes of computing motion blur." \
+            " steps is a sequence of 2 or more time values, and each of *cmds" \
+            " is a 2-tuple of («cmd», «args_seq») where «cmd» is a command name" \
+            " and «args_seq» is a sequence the same length as steps, each" \
+            " element of which is a set of arguments to «cmd»."
+            # see <https://renderman.pixar.com/resources/RenderMan_20/graphicsState.html#rimotionbegin>
+            Rib = type(self)
+            valid_cmds = set(k for k in Rib._cmds) | {"colour", "opacity"}
+              # fixme: should actually narrow list to just those listed in docs above
+            if (
+                    not isinstance(steps, (list, tuple))
+                or
+                    len(steps) < 2
+                or
+                    not all(isinstance(x, Real) for x in steps)
+            ) :
+                raise TypeError("steps must be a sequence of 2 or more numbers.")
+            #end if
+            if (
+                    not isinstance(cmds, (list, tuple))
+                or
+                    not all(isinstance(elt, (list, tuple)) and len(elt) == 2 for elt in cmds)
+                or
+                    not all
+                      (
+                            isinstance(elt[0], str)
+                        and
+                            elt[0] in valid_cmds
+                        and
+                            isinstance(elt[1], (list, tuple))
+                        and
+                            len(elt[1]) == len(steps)
+                        for elt in cmds
+                      )
+            ) :
+                raise TypeError("cmds must be sequence of («cmd», «args_seq»).")
+            #end if
+            for cmd, args_seq in cmds :
+                self._write_stmt("MotionBegin", [conv_num_array.conv(self._parent, steps)], {})
+                meth = getattr(self, cmd)
+                for args in args_seq :
+                    meth(*args)
+                #end for
+                self._write_stmt("MotionEnd", [], {})
+            #end for
+        #end motion
 
     #end Rib
 
@@ -993,6 +1042,7 @@ def def_rman_stmt(methname, stmtname, argtypes) :
     gen_stmt.__name__ = methname
     gen_stmt.__doc__ = "generates a RenderMan “%s” statement." % stmtname
     setattr(Context.Rib, methname, gen_stmt)
+    Context.Rib._cmds[methname] = argtypes
 #end def_rman_stmt
 
 vector_arg = [conv_num] * 3
@@ -1106,8 +1156,7 @@ for methname, stmtname, argtypes in \
         ("object_end", "ObjectEnd", []),
         # ("object_instance", "ObjectInstance") handled specially
 
-        # ("motion_begin", "MotionBegin", [conv_int, conv_num, conv_num ... TBD]),
-        ("motion_end", "MotionEnd", []),
+        # MotionBegin, MotionEnd handled specially
 
         # TBD section 7.1 texture-map utilities?
 
