@@ -125,7 +125,7 @@ conv_num = Converter("number", Real, lambda ctx, x : "%%.%dg" % ctx.precision % 
 conv_str = Converter("string", str, lambda ctx, s : quote_rman_str(s))
 conv_int_array = ArrayConverter("int_array", conv_int)
 conv_num_array = ArrayConverter("num_array", conv_num)
-conv_str_array = ArrayConverter("int_array", conv_str)
+conv_str_array = ArrayConverter("str_array", conv_str)
 
 conv_point = ArrayConverter("point", conv_num, 3)
 
