@@ -248,6 +248,7 @@ class Context :
 
         __slots__ = \
             (
+                "_CtxBlock",
                 "_parent",
                 "nr_colour_samples",
                 "_last_object_nr",
@@ -272,6 +273,31 @@ class Context :
         #end ObjectHandle
 
         def __init__(self, parent, filename, display) :
+
+            class _CtxBlock :
+
+                rib = self
+
+                def __init__(self, prefix, begin_args, begin_kwargs) :
+                    self.prefix = prefix
+                    self.begin_args = begin_args
+                    self.begin_kwargs = begin_kwargs
+                #end __init__
+
+                def __enter__(self) :
+                    self.rib._write_stmt("%sBegin" % self.prefix, self.begin_args, self.begin_kwargs)
+                    return \
+                        self
+                #end __enter__
+
+                def __exit__(self, exception_type, exception_value, traceback) :
+                    self.rib._write_stmt("%sEnd" % self.prefix, [], {})
+                #end __exit__
+
+            #end _CtxBlock
+
+        #begin __init__
+            self._CtxBlock = _CtxBlock
             self._display_pat = re.compile(r"^\s*display\s*(.+)$", flags = re.IGNORECASE)
             self._readarchive_pat = re.compile(r"^\s*readarchive\s*(.+)$", flags = re.IGNORECASE)
             self._parent = parent
@@ -1104,9 +1130,9 @@ class Context :
 
 #end Context
 
-def def_rman_stmt(methname, stmtname, argtypes) :
+def def_rman_stmt(methname, stmtname, argtypes, is_block) :
 
-    def gen_stmt(self, *args, **kwargs) :
+    def process_arglist(self, stmtname, argtypes, args, kwargs) :
         if len(args) == len(argtypes) + 1 and len(kwargs) == 0 and isinstance(args[-1], dict) :
             kwargs = args[-1]
             args = args[:-1]
@@ -1117,146 +1143,190 @@ def def_rman_stmt(methname, stmtname, argtypes) :
         if len(args) != len(argtypes) :
             raise TypeError("stmt %s expects %d positional args" % (stmtname, len(argtypes)))
         #end if
-        arglist = list \
-          (
-            self._parent._conv_arg(stmtname, i + 1, val, conv)
-            for i, (val, conv) in enumerate(zip(args, argtypes))
-          )
         return \
-            self._write_stmt(stmtname, arglist, kwargs)
-    #end gen_stmt
+            (
+                list
+                  (
+                    self._parent._conv_arg(stmtname, i + 1, val, conv)
+                    for i, (val, conv) in enumerate(zip(args, argtypes))
+                  ),
+                kwargs
+            )
+    #end process_arglist
+
+    def def_simple_stmt(methname, stmtname, argtypes) :
+
+        def gen_stmt(self, *args, **kwargs) :
+            arglist, kwargs = process_arglist(self, stmtname, argtypes, args, kwargs)
+            return \
+                self._write_stmt(stmtname, arglist, kwargs)
+        #end gen_stmt
+
+    #begin def_simple_stmt
+        gen_stmt.__name__ = methname
+        gen_stmt.__doc__ = "generates a RenderMan “%s” statement." % stmtname
+        setattr(Context.Rib, methname, gen_stmt)
+    #end def_simple_stmt
+
+    def def_context_stmts() :
+
+        prefix = methname + ("", "_")[len(methname) != 0]
+        context_methname = prefix + "context"
+
+        def gen_context_create(self, *args, **kwargs) :
+            arglist, kwargs = process_arglist(self, context_methname, argtypes, args, kwargs)
+            return \
+                self._CtxBlock(stmtname, arglist, kwargs)
+        #end gen_context_create
+
+    #begin def_context_stmts
+        gen_context_create.__name__ = prefix + "context"
+        gen_context_create.__doc__ = \
+            (
+                "returns a context manager that generates paired RenderMan “%(prefix)sBegin”"
+                " and “%(prefix)sEnd” statements."
+            %
+                {"prefix" : stmtname}
+            )
+        setattr(Context.Rib, gen_context_create.__name__, gen_context_create)
+        def_simple_stmt(prefix + "begin", stmtname + "Begin", argtypes)
+        def_simple_stmt(prefix + "end", stmtname + "End", [])
+    #end def_context_stmts
 
 #begin def_rman_stmt
-    gen_stmt.__name__ = methname
-    gen_stmt.__doc__ = "generates a RenderMan “%s” statement." % stmtname
-    setattr(Context.Rib, methname, gen_stmt)
+    if is_block :
+        def_context_stmts()
+    else :
+        def_simple_stmt(methname, stmtname, argtypes)
+    #end if
 #end def_rman_stmt
 
 vector_arg = [conv_num] * 3
 matrix_arg = [conv_num] * 16
-for methname, stmtname, argtypes in \
+for methname, stmtname, argtypes, is_block in \
     (
-        ("declare", "Declare", [conv_str, conv_str]),
+        ("declare", "Declare", [conv_str, conv_str], False),
 
-        ("begin", "Begin", [conv_str]),
-        ("end", "End", []),
-        ("context", "Context", [conv_int]),
-        ("frame_begin", "FrameBegin", [conv_int]),
-        ("frame_end", "FrameEnd", []),
-        ("world_begin", "WorldBegin", []),
-        ("world_end", "WorldEnd", []),
+        ("", "", [conv_str], True),
+        # ("end", "End"),
+        ("context", "Context", [conv_int], False),
+        ("frame", "Frame", [conv_int], True),
+        # ("frame_end", "FrameEnd", [], False),
+        ("world", "World", [], True),
+        # ("world_end", "WorldEnd"),
 
-        ("format", "Format", [conv_int, conv_int, conv_num]),
-        ("frame_aspect_ratio", "FrameAspectRatio", [conv_num]),
-        ("screen_window", "ScreenWindow", [conv_num, conv_num, conv_num, conv_num]),
-        ("crop_window", "CropWindow", [conv_num, conv_num, conv_num, conv_num]),
-        ("projection", "Projection", [conv_str]),
-        ("clipping", "Clipping", [conv_num, conv_num]),
-        ("clipping_plane", "ClippingPlane", [conv_num, conv_num, conv_num, conv_num, conv_num, conv_num]),
-        ("depth_of_field", "DepthOfField", [conv_num, conv_num, conv_num]),
-        ("shutter", "Shutter", [conv_num, conv_num]),
-        ("pixel_variance", "PixelVariance", [conv_num]),
-        ("pixel_samples", "PixelSamples", [conv_num, conv_num]),
-        ("pixel_filter", "PixelFilter", [conv_str, conv_num, conv_num]),
-        ("exposure", "Exposure", [conv_num, conv_num]),
-        ("imager", "Imager", [conv_str]),
-        ("quantize", "Quantize", [conv_str, conv_int, conv_int, conv_int, conv_num]),
+        ("format", "Format", [conv_int, conv_int, conv_num], False),
+        ("frame_aspect_ratio", "FrameAspectRatio", [conv_num], False),
+        ("screen_window", "ScreenWindow", [conv_num, conv_num, conv_num, conv_num], False),
+        ("crop_window", "CropWindow", [conv_num, conv_num, conv_num, conv_num], False),
+        ("projection", "Projection", [conv_str], False),
+        ("clipping", "Clipping", [conv_num, conv_num], False),
+        ("clipping_plane", "ClippingPlane", [conv_num, conv_num, conv_num, conv_num, conv_num, conv_num], False),
+        ("depth_of_field", "DepthOfField", [conv_num, conv_num, conv_num], False),
+        ("shutter", "Shutter", [conv_num, conv_num], False),
+        ("pixel_variance", "PixelVariance", [conv_num], False),
+        ("pixel_samples", "PixelSamples", [conv_num, conv_num], False),
+        ("pixel_filter", "PixelFilter", [conv_str, conv_num, conv_num], False),
+        ("exposure", "Exposure", [conv_num, conv_num], False),
+        ("imager", "Imager", [conv_str], False),
+        ("quantize", "Quantize", [conv_str, conv_int, conv_int, conv_int, conv_num], False),
         # ("display", "Display") handled specially
-        ("hider", "Hider", [conv_str]),
+        ("hider", "Hider", [conv_str], False),
         # ("colour_samples", "ColorSamples") treated specially
 
-        ("option", "Option", [conv_str]),
-        ("attribute_begin", "AttributeBegin", []),
-        ("attribute_end", "AttributeEnd", []),
+        ("option", "Option", [conv_str], False),
+        ("attribute", "Attribute", [], True),
+        # ("attribute_end", "AttributeEnd"),
         # ("colour", "Color") treated specially
         # ("opacity", "Opacity") treated specially
 
-        ("texture_coordinates", "TextureCoordinates", [conv_num, conv_num, conv_num, conv_num, conv_num, conv_num, conv_num, conv_num]),
-        ("light_source", "LightSource", [conv_str, conv_int]),
-        ("area_light_source", "AreaLightSource", [conv_str, conv_int]),
-        ("illuminate", "Illuminate", [conv_int, conv_bool]),
-        ("surface", "Surface", [conv_str]),
-        ("displacement", "Displacement", [conv_str]),
-        ("atmosphere", "Atmosphere", [conv_str]),
-        ("interior", "Interior", [conv_str]),
-        ("exterior", "Exterior", [conv_str]),
+        ("texture_coordinates", "TextureCoordinates", [conv_num, conv_num, conv_num, conv_num, conv_num, conv_num, conv_num, conv_num], False),
+        ("light_source", "LightSource", [conv_str, conv_int], False),
+        ("area_light_source", "AreaLightSource", [conv_str, conv_int], False),
+        ("illuminate", "Illuminate", [conv_int, conv_bool], False),
+        ("surface", "Surface", [conv_str], False),
+        ("displacement", "Displacement", [conv_str], False),
+        ("atmosphere", "Atmosphere", [conv_str], False),
+        ("interior", "Interior", [conv_str], False),
+        ("exterior", "Exterior", [conv_str], False),
 
-        ("shading_rate", "ShadingRate", [conv_num]),
-        ("shading_interpolation", "ShadingInterpolation", [conv_str]),
-        ("matte", "Matte", [conv_bool]),
-        ("bound", "Bound", [conv_num, conv_num, conv_num, conv_num, conv_num, conv_num]),
-        ("detail", "Detail", [conv_num, conv_num, conv_num, conv_num, conv_num, conv_num]),
-        ("detail_range", "DetailRange", [conv_num, conv_num, conv_num, conv_num]),
-        ("geometric_approximation", "GeometricApproximation", [conv_str, conv_num]),
-        ("orientation", "Orientation", [conv_str]),
-        ("reverse_orientation", "ReverseOrientation", []),
-        ("sides", "Sides", [conv_int]),
+        ("shading_rate", "ShadingRate", [conv_num], False),
+        ("shading_interpolation", "ShadingInterpolation", [conv_str], False),
+        ("matte", "Matte", [conv_bool], False),
+        ("bound", "Bound", [conv_num, conv_num, conv_num, conv_num, conv_num, conv_num], False),
+        ("detail", "Detail", [conv_num, conv_num, conv_num, conv_num, conv_num, conv_num], False),
+        ("detail_range", "DetailRange", [conv_num, conv_num, conv_num, conv_num], False),
+        ("geometric_approximation", "GeometricApproximation", [conv_str, conv_num], False),
+        ("orientation", "Orientation", [conv_str], False),
+        ("reverse_orientation", "ReverseOrientation", [], False),
+        ("sides", "Sides", [conv_int], False),
 
-        ("identity", "Identity", []),
-        ("transform", "Transform", matrix_arg),
-        ("concat_transform", "ConcatTransform", matrix_arg),
-        ("translate", "Translate", vector_arg),
-        ("rotate", "Rotate", [conv_num] + vector_arg),
-        ("scale", "Scale", vector_arg),
-        ("skew", "Skew", [conv_num, conv_num, conv_num, conv_num, conv_num, conv_num, conv_num]),
-        ("coordinate_system", "CoordinateSystem", [conv_str]),
-        ("coord_sys_transform", "CoordSysTransform", [conv_str]),
+        ("identity", "Identity", [], False),
+        ("transform", "Transform", matrix_arg, False),
+        ("concat_transform", "ConcatTransform", matrix_arg, False),
+        ("translate", "Translate", vector_arg, False),
+        ("rotate", "Rotate", [conv_num] + vector_arg, False),
+        ("scale", "Scale", vector_arg, False),
+        ("skew", "Skew", [conv_num, conv_num, conv_num, conv_num, conv_num, conv_num, conv_num], False),
+        ("coordinate_system", "CoordinateSystem", [conv_str], False),
+        ("coord_sys_transform", "CoordSysTransform", [conv_str], False),
         # TransformPoints probably not useful
-        ("transform_begin", "TransformBegin", []),
-        ("transform_end", "TransformEnd", []),
+        ("transform", "Transform", [], True),
+        # ("transform_end", "TransformEnd"),
 
-        ("attribute", "Attribute", [conv_str]),
-        ("attribute_begin", "AttributeBegin", []),
-        ("attribute_end", "AttributeEnd", []),
+        ("attribute", "Attribute", [conv_str], False),
+        ("attribute", "Attribute", [], True),
+        # ("attribute_end", "AttributeEnd"),
 
-        ("polygon", "Polygon", [conv_int]),
-        ("general_polygon", "GeneralPolygon", [conv_int_array]),
-        ("points_polygons", "PointsPolygons", [conv_int_array, conv_int_array]),
-        ("points_general_polygons", "PointsGeneralPolygons", [conv_int_array, conv_int_array, conv_int_array]),
+        ("polygon", "Polygon", [conv_int], False),
+        ("general_polygon", "GeneralPolygon", [conv_int_array], False),
+        ("points_polygons", "PointsPolygons", [conv_int_array, conv_int_array], False),
+        ("points_general_polygons", "PointsGeneralPolygons", [conv_int_array, conv_int_array, conv_int_array], False),
 
         # ("basis", "Basis") handled specially
-        ("patch", "Patch", [conv_str]),
-        ("patch_mesh", "PatchMesh", [conv_str, conv_int, conv_str, conv_int, conv_int]),
-        ("nu_patch", "NuPatch", [conv_int, conv_int, conv_num_array, conv_num, conv_num, conv_int, conv_int, conv_num_array, conv_num, conv_num]),
-        ("trim_curve", "TrimCurve", [conv_int, conv_int_array, conv_int_array, conv_num_array, conv_num, conv_num, conv_int_array, conv_num_array, conv_num_array, conv_num_array]),
+        ("patch", "Patch", [conv_str], False),
+        ("patch_mesh", "PatchMesh", [conv_str, conv_int, conv_str, conv_int, conv_int], False),
+        ("nu_patch", "NuPatch", [conv_int, conv_int, conv_num_array, conv_num, conv_num, conv_int, conv_int, conv_num_array, conv_num, conv_num], False),
+        ("trim_curve", "TrimCurve", [conv_int, conv_int_array, conv_int_array, conv_num_array, conv_num, conv_num, conv_int_array, conv_num_array, conv_num_array, conv_num_array], False),
 
-        ("subdivision_mesh", "SubdivisionMesh", [conv_str, conv_int, conv_int_array, conv_int_array, conv_int, conv_str_array, conv_int_array, conv_int_array, conv_num_array]),
+        ("subdivision_mesh", "SubdivisionMesh", [conv_str, conv_int, conv_int_array, conv_int_array, conv_int, conv_str_array, conv_int_array, conv_int_array, conv_num_array], False),
 
-        ("sphere", "Sphere", [conv_num, conv_num, conv_num, conv_num]),
-        ("cone", "Cone", [conv_num, conv_num, conv_num]),
-        ("cylinder", "Cylinder", [conv_num, conv_num, conv_num, conv_num]),
-        ("hyperboloid", "Hyperboloid", [conv_point, conv_point, conv_num]),
-        ("paraboloid", "Paraboloid", [conv_num, conv_num, conv_num, conv_num]),
-        ("disk", "Disk", [conv_num, conv_num, conv_num]),
-        ("torus", "Torus", [conv_num, conv_num, conv_num, conv_num, conv_num]),
+        ("sphere", "Sphere", [conv_num, conv_num, conv_num, conv_num], False),
+        ("cone", "Cone", [conv_num, conv_num, conv_num], False),
+        ("cylinder", "Cylinder", [conv_num, conv_num, conv_num, conv_num], False),
+        ("hyperboloid", "Hyperboloid", [conv_point, conv_point, conv_num], False),
+        ("paraboloid", "Paraboloid", [conv_num, conv_num, conv_num, conv_num], False),
+        ("disk", "Disk", [conv_num, conv_num, conv_num], False),
+        ("torus", "Torus", [conv_num, conv_num, conv_num, conv_num, conv_num], False),
 
-        ("points", "Points", [conv_int]),
-        ("curves", "Curves", [conv_str, conv_int_array, conv_str]),
-        ("blobby", "Blobby", [conv_int, conv_int, conv_int_array, conv_num, conv_num_array, conv_int, conv_str_array]),
+        ("points", "Points", [conv_int], False),
+        ("curves", "Curves", [conv_str, conv_int_array, conv_str], False),
+        ("blobby", "Blobby", [conv_int, conv_int, conv_int_array, conv_num, conv_num_array, conv_int, conv_str_array], False),
 
         # ("procedural", "Procedural") handled specially
-        ("geometry", "Geometry", [conv_str]),
+        ("geometry", "Geometry", [conv_str], False),
 
-        ("solid_begin", "SolidBegin", [conv_str]),
-        ("solid_end", "SolidEnd", []),
+        ("solid", "Solid", [conv_str], True),
+        # ("solid_end", "SolidEnd"),
         # ("object_begin", "ObjectBegin") handled specially
-        ("object_end", "ObjectEnd", []),
+        ("object_end", "ObjectEnd", [], False),
         # ("object_instance", "ObjectInstance") handled specially
 
         # MotionBegin, MotionEnd handled specially
 
          # todo for all following texture utilities calls: support additional parameters?
-        ("make_texture", "MakeTexture", [conv_str, conv_str, conv_str, conv_str, conv_str, conv_num, conv_num]),
-        ("make_lat_long_environment", "MakeLatLongEnvironment", [conv_str, conv_str, conv_str, conv_num, conv_num]),
-        ("make_cube_face_environment", "MakeCubeFaceEnvironment", [conv_str, conv_str, conv_str, conv_str, conv_str, conv_str, conv_str, conv_num, conv_str, conv_num, conv_num]),
-        ("make_shadow", "MakeShadow", [conv_str, conv_str]),
+        ("make_texture", "MakeTexture", [conv_str, conv_str, conv_str, conv_str, conv_str, conv_num, conv_num], False),
+        ("make_lat_long_environment", "MakeLatLongEnvironment", [conv_str, conv_str, conv_str, conv_num, conv_num], False),
+        ("make_cube_face_environment", "MakeCubeFaceEnvironment", [conv_str, conv_str, conv_str, conv_str, conv_str, conv_str, conv_str, conv_num, conv_str, conv_num, conv_num], False),
+        ("make_shadow", "MakeShadow", [conv_str, conv_str], False),
 
-        ("error_handler", "ErrorHandler", [conv_str]),
+        ("error_handler", "ErrorHandler", [conv_str], False),
         # ("read_archive", "ReadArchive") handled specially
     ) \
 :
-    def_rman_stmt(methname, stmtname, argtypes)
+    def_rman_stmt(methname, stmtname, argtypes, is_block)
 #end for
+
 del methname, stmtname, argtypes
 del vector_arg, matrix_arg
 
