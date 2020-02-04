@@ -4,6 +4,10 @@ running the tools.
 
 Also needed: “convert” command from ImageMagick/GraphicsMagick.
 """
+#+
+# Copyright 2020 Lawrence D'Oliveiro <ldo@geek-central.gen.nz>.
+# Licensed under the GNU Lesser General Public License v2.1 or later.
+#-
 
 import sys
 import enum
