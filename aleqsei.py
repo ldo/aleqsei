@@ -260,7 +260,6 @@ class Context :
                 "_display_pat",
                 "_readarchive_pat",
             )
-        _cmds = {}
 
         class ObjectHandle :
             __slots__ = ("parent", "index")
@@ -545,8 +544,52 @@ class Context :
             " element of which is a set of arguments to «cmd»."
             # see <https://renderman.pixar.com/resources/RenderMan_20/graphicsState.html#rimotionbegin>
             Rib = type(self)
-            valid_cmds = set(k for k in Rib._cmds) | {"colour", "opacity"}
-              # fixme: should actually narrow list to just those listed in docs above
+            valid_cmds = \
+                { # ones allowed inside a MotionBegin/MotionEnd block
+                    "transform",
+                    "concat_transform",
+                    "perspective",
+                    "translate",
+                    "rotate",
+                    "scale",
+                    "skew",
+
+                    "projection",
+                    "displacement",
+
+                    "bound",
+                    "detail",
+
+                    "polygon",
+                    "general_polygon",
+                    "points_polygons",
+                    "points_general_polygons",
+                    "patch",
+                    "patch_mesh",
+                    "nu_patch",
+                    "sphere",
+                    "cone",
+                    "cylinder",
+                    "hyperboloid",
+                    "paraboloid",
+                    "disk",
+                    "torus",
+                    "points",
+                    "curves",
+                    "subdivision_mesh",
+                    "blobby",
+
+                    "colour",
+                    "opacity",
+
+                    "light_source",
+                    "area_light_source",
+
+                    "surface",
+                    "interior",
+                    "exterior",
+                    "atmosphere",
+                }
             if (
                     not isinstance(steps, (list, tuple))
                 or
@@ -1084,7 +1127,6 @@ def def_rman_stmt(methname, stmtname, argtypes) :
     gen_stmt.__name__ = methname
     gen_stmt.__doc__ = "generates a RenderMan “%s” statement." % stmtname
     setattr(Context.Rib, methname, gen_stmt)
-    Context.Rib._cmds[methname] = argtypes
 #end def_rman_stmt
 
 vector_arg = [conv_num] * 3
