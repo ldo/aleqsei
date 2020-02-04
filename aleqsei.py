@@ -319,24 +319,7 @@ class Context :
                     and
                         len(display_parms) >= 3
                 ) :
-                    display_type = display_parms[1].lower()
-                    if display_type in ("file", "tiff", "framebuffer") :
-                        imgfile_name = display_parms[0]
-                        seen_imgfile = imgfile_name.startswith("+") # assume I’ve seen it before
-                        if seen_imgfile :
-                            imgfile_name = imgfile_name[1:]
-                        #end if
-                        if (
-                                self._display == DISPLAY.ALL and not seen_imgfile
-                            or
-                                self._display == DISPLAY.FRAMEBUFFER and display_type == "framebuffer"
-                        ) :
-                            self._imgfile_names.append(os.path.join(self._parent._workdir, imgfile_name))
-                        #end if
-                        if display_type == "framebuffer" :
-                            line = None
-                        #end if
-                    #end if
+                    self.display(*display_parms[0:3])
                 #end if
             #end do_auto_display
 
@@ -450,6 +433,26 @@ class Context :
 
         # all the rest of the RenderMan statement-generating methods
         # are defined by calling def_rman_stmt (below), except the following
+
+        def display(self, name, display_type, display_mode) :
+            # todo: extra parms?
+            if display_type in ("file", "tiff", "framebuffer") :
+                seen_imgfile = name.startswith("+") # assume I’ve seen it before
+                if seen_imgfile :
+                    name = name[1:]
+                #end if
+                if (
+                        self._display == DISPLAY.ALL and not seen_imgfile
+                    or
+                        self._display == DISPLAY.FRAMEBUFFER and display_type == "framebuffer"
+                ) :
+                    self._imgfile_names.append(os.path.join(self._parent._workdir, name))
+                #end if
+                if display_type == "framebuffer" :
+                    line = None
+                #end if
+            #end if
+        #end display
 
         def colour_samples(self, to_rgb, from_rgb) :
             if (
@@ -1158,7 +1161,7 @@ for methname, stmtname, argtypes in \
         ("exposure", "Exposure", [conv_num, conv_num]),
         ("imager", "Imager", [conv_str]),
         ("quantize", "Quantize", [conv_str, conv_int, conv_int, conv_int, conv_num]),
-        # ("display", "Display") TBD
+        # ("display", "Display") handled specially
         ("hider", "Hider", [conv_str]),
         # ("colour_samples", "ColorSamples") treated specially
 
