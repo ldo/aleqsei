@@ -1318,7 +1318,6 @@ for methname, stmtname, argtypes, is_block in \
 
         # MotionBegin, MotionEnd handled specially
 
-         # todo for all following texture utilities calls: support additional parameters?
         ("make_texture", "MakeTexture", [conv_str, conv_str, conv_str, conv_str, conv_str, conv_num, conv_num], False),
         ("make_lat_long_environment", "MakeLatLongEnvironment", [conv_str, conv_str, conv_str, conv_num, conv_num], False),
         ("make_cube_face_environment", "MakeCubeFaceEnvironment", [conv_str, conv_str, conv_str, conv_str, conv_str, conv_str, conv_str, conv_num, conv_str, conv_num, conv_num], False),
