@@ -1327,7 +1327,7 @@ for methname, stmtname, argtypes, is_block in \
     def_rman_stmt(methname, stmtname, argtypes, is_block)
 #end for
 
-del methname, stmtname, argtypes
+del methname, stmtname, argtypes, is_block
 del vector_arg, matrix_arg
 
 del def_rman_stmt # your work is done
