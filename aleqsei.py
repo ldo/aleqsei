@@ -1242,7 +1242,11 @@ for methname, stmtname, argtypes in \
 
         # MotionBegin, MotionEnd handled specially
 
-        # TBD section 7.1 texture-map utilities?
+         # todo for all following texture utilities calls: support additional parameters?
+        ("make_texture", "MakeTexture", [conv_str, conv_str, conv_str, conv_str, conv_str, conv_num, conv_num]),
+        ("make_lat_long_environment", "MakeLatLongEnvironment", [conv_str, conv_str, conv_str, conv_num, conv_num]),
+        ("make_cube_face_environment", "MakeCubeFaceEnvironment", [conv_str, conv_str, conv_str, conv_str, conv_str, conv_str, conv_str, conv_num, conv_str, conv_num, conv_num]),
+        ("make_shadow", "MakeShadow", [conv_str, conv_str]),
 
         ("error_handler", "ErrorHandler", [conv_str]),
         # ("read_archive", "ReadArchive") handled specially
