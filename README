@@ -68,9 +68,6 @@ Another with-statement instead of `ri.attribute_begin()`/`ri.attribute_end()`:
 
             with ri.attribute_context() :
                 ri.colour(1, 0.6, 0) # A nice orange colour
-                # Displacement bounds, important for correct rendering
-                ri.attribute("displacementbound", \
-                    {"float sphere" : [0.1], "coordinatesystem" : ["shader"]})
                 ri.surface("plastic", Ka = [1], Kd = [0.5], Ks = 1, roughness = 0.1)
 
 Context-manager substitute for `ri.transform_begin()`/`ri.transform_end()`:
