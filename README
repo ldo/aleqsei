@@ -152,5 +152,11 @@ the files can find each other:
 
 and then writing out `ctx.images[0]` as a PNG file as before.
 
+## Examples ##
+
+Examples of the use of Aleqsei may be found in my Aleqsei examples
+repo ([GitLab](https://gitlab.com/ldo/aleqsei_examples),
+[GitHub](https://github.com/ldo/aleqsei_examples)).
+
 Lawrence D'Oliveiro <ldo@geek-central.gen.nz>
-2020 February 4
+2020 February 5
