@@ -759,20 +759,27 @@ class Context :
             self.Rib(self, outfile_name, display)
     #end new_rib
 
-    def _compile_rib(self, iter, display, infilename) :
-        rib = self.new_rib(display)
+    def _compile_rib(self, src, display, infilename) :
         # need to copy line by line to allow autoparsing of display and include lines
+        if isinstance(src, str) :
+            src_iter = iter(src.split("\n"))
+        elif hasattr(src, "__next__") or hasattr(src, "__iter__") :
+            src_iter = src # fine
+        else :
+            raise TypeError("src must be string or iterable of strings")
+        #end if
+        rib = self.new_rib(display)
         rib._infilename = infilename
         rib._linenr = 0
-        for line in iter :
+        for line in src_iter :
             rib._linenr += 1
             rib.writeln(line.rstrip("\n"))
         #end for
         rib.close()
     #end _compile_rib
 
-    def compile_rib(self, iter, display = DISPLAY.FRAMEBUFFER) :
-        self._compile_rib(iter, display, "<iterator>")
+    def compile_rib(self, src, display = DISPLAY.FRAMEBUFFER) :
+        self._compile_rib(src, display, "<iterator>")
     #end compile_rib
 
     def compile_rib_file(self, filename, display = DISPLAY.FRAMEBUFFER) :
