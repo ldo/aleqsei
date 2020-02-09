@@ -445,7 +445,6 @@ class Context :
                 sys.stderr.write(aqsis_output)
             #end if
             if len(self._imgfile_names) != 0 :
-                print("close: to convert: %s" % repr(self._imgfile_names)) # debug
                 for imgfile_name in self._imgfile_names :
                     self._parent._collect_display(imgfile_name)
                 #end for
