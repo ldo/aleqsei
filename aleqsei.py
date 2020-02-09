@@ -751,7 +751,7 @@ class Context :
     def _init_temp(self) :
         # ensures the temporary directory structure has been created.
         if self._tempdir == None :
-            self._tempdir = tempfile.mkdtemp(prefix = "aleqsi-")
+            self._tempdir = tempfile.mkdtemp(prefix = "aleqsei-")
             self._workdir = os.path.join(self._tempdir, "work")
             os.mkdir(self._workdir)
               # separate subdirectory for files created by caller
