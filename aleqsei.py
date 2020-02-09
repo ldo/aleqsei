@@ -1212,7 +1212,7 @@ for methname, stmtname, argtypes, is_block in \
 
         ("", "", [conv_str], True),
         # ("end", "End"),
-        ("context", "Context", [conv_int], False),
+        # ("context", "Context", [conv_int], False), # this and GetContext not actually allowed in RIB
         ("frame", "Frame", [conv_int], True),
         # ("frame_end", "FrameEnd", [], False),
         ("world", "World", [], True),
