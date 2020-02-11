@@ -349,7 +349,11 @@ class Context :
                     and
                         len(display_parms) >= 3
                 ) :
-                    self.display(*display_parms[0:3])
+                    name, display_type, display_mode = display_parms[0:3]
+                    self.display(name, display_type, display_mode)
+                    if display_type == "framebuffer" :
+                        line = None
+                    #end if
                 #end if
             #end do_auto_display
 
@@ -476,9 +480,6 @@ class Context :
                         self._display == DISPLAY.FRAMEBUFFER and display_type == "framebuffer"
                 ) :
                     self._imgfile_names.append(os.path.join(self._parent._workdir, name))
-                #end if
-                if display_type == "framebuffer" :
-                    line = None
                 #end if
             #end if
         #end display
