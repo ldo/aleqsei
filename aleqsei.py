@@ -23,6 +23,48 @@ import shutil
 import shlex
 from qahirah import \
     Colour
+class ReasonableUmask :
+    "This class is a context manager which can be used to" \
+    " temporarily change the umask to a reasonable value." \
+    " Or you could just use the ensure() classmethod on its own."
+
+    ensure_clear_in_umask = 0o700
+
+    @classmethod
+    def ensure(celf) :
+        "ensures that the umask is set to a reasonable value, namely" \
+        " that user always has read+write+execute access to files that" \
+        " they create, while leaving the group- and other-access bits" \
+        " unchanged. Returns the previous and new umask values, for" \
+        " reference."
+        oldmask = os.umask(0o077)
+          # temporarily set to some safe value
+        newmask = oldmask & ~celf.ensure_clear_in_umask
+        os.umask(newmask)
+        return oldmask, newmask
+    #end ensure
+
+    def __enter__(self) :
+        self.oldmask, self.newmask = self.ensure()
+          # also save newmask for user info if needed
+        return self
+    #end __enter__
+
+    def __exit__(self, exc_type, exc_value, traceback) :
+        os.umask(self.oldmask)
+    #end __exit__
+
+    @classmethod
+    def call(celf, func, *args, **kwargs) :
+        "invokes func with the specified args within an instance" \
+        " of the context manager."
+        with celf() :
+            result = func(*args, **kwargs)
+        #end with
+        return result
+    #end call
+
+#end ReasonableUmask
 
 @enum.unique
 class SEARCH_TYPE(enum.Enum) :
@@ -310,7 +352,7 @@ class Context :
             self._display = display
             self._imgfile_names = []
             self._filename = filename
-            self._out = open(filename, "w")
+            self._out = ReasonableUmask.call(open, filename, "wt")
             self._infilename = "<API call>"
             self._linenr = None
             if display == DISPLAY.AUTO :
@@ -436,15 +478,17 @@ class Context :
             #end for
             # no need for SEARCH_TYPE.SOURCE here, since I automatically
             # expanded all RIB includes myself
-            aqsis_output = subprocess.check_output \
-              (
-                args = ["aqsis"] + extra + [self._filename],
-                stdin = subprocess.DEVNULL,
-                stderr = subprocess.STDOUT,
-                universal_newlines = True,
-                cwd = self._parent._workdir,
-                timeout = self._parent.timeout
-              )
+            with ReasonableUmask() :
+                aqsis_output = subprocess.check_output \
+                  (
+                    args = ["aqsis"] + extra + [self._filename],
+                    stdin = subprocess.DEVNULL,
+                    stderr = subprocess.STDOUT,
+                    universal_newlines = True,
+                    cwd = self._parent._workdir,
+                    timeout = self._parent.timeout
+                  )
+            #end with
             if self._parent.debug :
                 sys.stderr.write(aqsis_output)
             #end if
@@ -752,10 +796,12 @@ class Context :
     def _init_temp(self) :
         # ensures the temporary directory structure has been created.
         if self._tempdir == None :
-            self._tempdir = tempfile.mkdtemp(prefix = "aleqsei-")
-            self._workdir = os.path.join(self._tempdir, "work")
-            os.mkdir(self._workdir)
-              # separate subdirectory for files created by caller
+            with ReasonableUmask() :
+                self._tempdir = tempfile.mkdtemp(prefix = "aleqsei-")
+                self._workdir = os.path.join(self._tempdir, "work")
+                os.mkdir(self._workdir)
+                  # separate subdirectory for files created by caller
+              #end with
         #end if
     #end _init_temp
 
@@ -864,16 +910,18 @@ class Context :
     #end compile_rib_file
 
     def _compile_shader(self, filename) :
-        slproc = subprocess.Popen \
-          (
-            args = ("aqsl", filename),
-            stdin = subprocess.DEVNULL,
-            stdout = subprocess.PIPE,
-            stderr = subprocess.STDOUT,
-            universal_newlines = True,
-            cwd = self._workdir
-          )
-        slproc_output, _ = slproc.communicate(timeout = self.timeout)
+        with ReasonableUmask() :
+            slproc = subprocess.Popen \
+              (
+                args = ("aqsl", filename),
+                stdin = subprocess.DEVNULL,
+                stdout = subprocess.PIPE,
+                stderr = subprocess.STDOUT,
+                universal_newlines = True,
+                cwd = self._workdir
+              )
+            slproc_output, _ = slproc.communicate(timeout = self.timeout)
+        #end with
         if slproc.returncode == 0 :
             if self.debug and slproc_output != None :
                 sys.stderr.write(slproc_output)
@@ -890,7 +938,7 @@ class Context :
     def new_shader(self, name) :
         shader_filename = self._new_genfile(self._GENFILETYPE.SHADER, name)
         return \
-            self.Shader(self, shader_filename, open(shader_filename, "w"))
+            self.Shader(self, shader_filename, ReasonableUmask.call(open, shader_filename, "wt"))
     #end new_shader
 
     def compile_shader(self, name, src) :
@@ -989,41 +1037,43 @@ class Context :
             raise TypeError("positional args must be 1 or 6 bytes objects")
         #end if
         input_files = []
-        for b in args :
-            filename = self._new_texfile_name()
-            if True :
-                pngtemp = filename + ".png"
-                pngout = open(pngtemp, "wb")
-                pngout.write(b)
-                pngout.flush()
-                subprocess.check_call \
-                  (
-                    args = ("convert", pngtemp, filename),
-                    universal_newlines = False,
-                    timeout = self.timeout
-                  )
-            else :
-                # feeding PNG byte stream directly via pipe doesn’t seem to work
-                # -- convert complains with “insufficient image data”
-                subprocess.check_call \
-                  (
-                    args = ("convert", "png:/dev/stdin", filename),
-                    input = b,
-                    universal_newlines = False,
-                    timeout = self.timeout
-                  )
-            #end if
-            input_files.append(filename)
-        #end for
-        teqser_output = subprocess.check_output \
-          (
-            args = self._teqser_args(kwargs, doing_envcube) + input_files + [output_file],
-            stdin = subprocess.DEVNULL,
-            stderr = subprocess.STDOUT,
-            universal_newlines = True,
-            cwd = self._workdir,
-            timeout = self.timeout
-          )
+        with ReasonableUmask() :
+            for b in args :
+                filename = self._new_texfile_name()
+                if True :
+                    pngtemp = filename + ".png"
+                    pngout = open(pngtemp, "wb")
+                    pngout.write(b)
+                    pngout.flush()
+                    subprocess.check_call \
+                      (
+                        args = ("convert", pngtemp, filename),
+                        universal_newlines = False,
+                        timeout = self.timeout
+                      )
+                else :
+                    # feeding PNG byte stream directly via pipe doesn’t seem to work
+                    # -- convert complains with “insufficient image data”
+                    subprocess.check_call \
+                      (
+                        args = ("convert", "png:/dev/stdin", filename),
+                        input = b,
+                        universal_newlines = False,
+                        timeout = self.timeout
+                      )
+                #end if
+                input_files.append(filename)
+            #end for
+            teqser_output = subprocess.check_output \
+              (
+                args = self._teqser_args(kwargs, doing_envcube) + input_files + [output_file],
+                stdin = subprocess.DEVNULL,
+                stderr = subprocess.STDOUT,
+                universal_newlines = True,
+                cwd = self._workdir,
+                timeout = self.timeout
+              )
+        #end with
         if self.debug :
             sys.stderr.write(teqser_output)
         #end if
@@ -1042,15 +1092,17 @@ class Context :
             raise TypeError("positional args must be 1 or 6 file names")
         #end if
         input_files = list(self.find_file(f, SEARCH_TYPE.TEXTURE) for f in args)
-        teqser_output = subprocess.check_output \
-          (
-            args = self._teqser_args(kwargs, doing_envcube) + input_files + [output_file],
-            stdin = subprocess.DEVNULL,
-            stderr = subprocess.STDOUT,
-            universal_newlines = True,
-            cwd = self._workdir,
-            timeout = self.timeout
-          )
+        with ReasonableUmask() :
+            teqser_output = subprocess.check_output \
+              (
+                args = self._teqser_args(kwargs, doing_envcube) + input_files + [output_file],
+                stdin = subprocess.DEVNULL,
+                stderr = subprocess.STDOUT,
+                universal_newlines = True,
+                cwd = self._workdir,
+                timeout = self.timeout
+              )
+        #end with
         if self.debug :
             sys.stderr.write(teqser_output)
         #end if
