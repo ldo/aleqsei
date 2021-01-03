@@ -23,10 +23,14 @@ import shutil
 import shlex
 from qahirah import \
     Colour
+
 class ReasonableUmask :
     "This class is a context manager which can be used to" \
-    " temporarily change the umask to a reasonable value." \
-    " Or you could just use the ensure() classmethod on its own."
+    " temporarily change the umask to a reasonable value over" \
+    " a given block of code. Or you could use the ensure()" \
+    " classmethod to make a process-permanent change to the umask," \
+    " or the call() classmethod for a one-shot invocation of a given" \
+    " function with a reasonable umask."
 
     ensure_clear_in_umask = 0o700
 
@@ -37,21 +41,21 @@ class ReasonableUmask :
         " they create, while leaving the group- and other-access bits" \
         " unchanged. Returns the previous and new umask values, for" \
         " reference."
-        oldmask = os.umask(0o077)
+        previous = os.umask(0o077)
           # temporarily set to some safe value
-        newmask = oldmask & ~celf.ensure_clear_in_umask
-        os.umask(newmask)
-        return oldmask, newmask
+        using = previous & ~celf.ensure_clear_in_umask
+        os.umask(using)
+        return previous, using
     #end ensure
 
     def __enter__(self) :
-        self.oldmask, self.newmask = self.ensure()
-          # also save newmask for user info if needed
+        self.previous, self.using = self.ensure()
+          # also save new umask for user reference if needed
         return self
     #end __enter__
 
     def __exit__(self, exc_type, exc_value, traceback) :
-        os.umask(self.oldmask)
+        os.umask(self.previous)
     #end __exit__
 
     @classmethod
