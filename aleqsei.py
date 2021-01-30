@@ -14,6 +14,7 @@ import enum
 from numbers import \
     Real
 import os
+import stat
 import array
 import re
 import subprocess
@@ -24,51 +25,121 @@ import shlex
 from qahirah import \
     Colour
 
-class ReasonableUmask :
-    "This class is a context manager which can be used to" \
-    " temporarily change the umask to a reasonable value over" \
-    " a given block of code. Or you could use the ensure()" \
-    " classmethod to make a process-permanent change to the umask," \
-    " or the call() classmethod for a one-shot invocation of a given" \
-    " function with a reasonable umask."
-
-    ensure_clear_in_umask = 0o700
+class ReasonablePerms :
+    "This class provides an ensure() method for setting reasonable permissions" \
+    " on any file or directory pathname. It provides convenience wrappers" \
+    " for other routines that automatically invoke the ensure() method on created" \
+    " files/directories. It also includes a wrapper for selected routines from" \
+    " the subprocess module to ensure created processes start off with a reasonable" \
+    " umask."
 
     @classmethod
-    def ensure(celf) :
-        "ensures that the umask is set to a reasonable value, namely" \
-        " that user always has read+write+execute access to files that" \
-        " they create, while leaving the group- and other-access bits" \
-        " unchanged. Returns the previous and new umask values, for" \
-        " reference."
-        previous = os.umask(0o077)
-          # temporarily set to some safe value
-        using = previous & ~celf.ensure_clear_in_umask
-        os.umask(using)
-        return previous, using
+    def ensure(celf, pathname) :
+        "ensures that the permission bits on the specified path are" \
+        " set to a reasonable value, namely that the owner always has" \
+        " read+write[+execute] access, while leaving the group- and" \
+        " other-access bits unchanged."
+        old_perms = os.stat(pathname).st_mode
+        new_perms = \
+          (
+                old_perms & (stat.S_IRWXG | stat.S_IRWXO)
+            |
+                stat.S_IRWXU  & ~(stat.S_IXUSR, 0)[stat.S_ISDIR(old_perms)]
+          )
+        os.chmod(pathname, new_perms)
     #end ensure
 
-    def __enter__(self) :
-        self.previous, self.using = self.ensure()
-          # also save new umask for user reference if needed
-        return self
-    #end __enter__
-
-    def __exit__(self, exc_type, exc_value, traceback) :
-        os.umask(self.previous)
-    #end __exit__
+    @classmethod
+    def mkdtemp(celf, suffix = None, prefix = None, dir = None) :
+        "wrapper around tempfile.mkdtemp() that ensures the created" \
+        " directory has reasonable permissions."
+        tempdir = tempfile.mkdtemp(suffix, prefix, dir)
+        celf.ensure(tempdir)
+        return tempdir
+    #end mkdtemp
 
     @classmethod
-    def call(celf, func, *args, **kwargs) :
-        "invokes func with the specified args within an instance" \
-        " of the context manager."
-        with celf() :
-            result = func(*args, **kwargs)
-        #end with
-        return result
-    #end call
+    def mkdir(celf, path, mode = 0o777, dir_fd = None) :
+        "wrapper around os.mkdir() that ensures the created" \
+        " directory has reasonable permissions."
+        os.mkdir(path, mode, dir_fd = dir_fd)
+        celf.ensure(path)
+    #end mkdir
 
-#end ReasonableUmask
+    @classmethod
+    def open_new(celf, file, mode, buffering = -1, encoding = None, errors = None, newline = None, closefd = True, opener = None) :
+        "wrapper around builtin open() routine that ensures the newly-created" \
+        " file has reasonable permissions. Shouldn’t be used for opening existing" \
+        " files."
+        result = open(file, mode, buffering, encoding, errors, newline, closefd, opener)
+        celf.ensure(file)
+        return result
+    #end open_new
+
+    class subprocess :
+        "contains wrappers for relevant subprocess module calls, to ensure that" \
+        " files/directories created by subprocesses have reasonable permissions." \
+        " Python 3.9 adds a new “umask” arg to allow setting the umask for spawned" \
+        " processes, but I don’t use this, for backward compatibility with earlier" \
+        " Python versions. Instead, I use the preexec_fn arg to pass a function that" \
+        " sets the umask within the subprocess. This will also call your preexec_fn," \
+        " if you specify one.\n" \
+        "\n" \
+        "Note my wrappers only allow the first, “args”, arg as positional, all the" \
+        " rest must be by keyword. This really only puts a restriction on the Popen" \
+        " constructor call. Fixing this is left as an exercise for the reader."
+
+        use_umask = 0o077
+          # I could use a more elaborate scheme based on taking the user-specified
+          # umask and clearing just the owner bits. But setting an unconditional
+          # value is just easier.
+
+    #end subprocess
+
+    def define_subproc_method(my_subprocess, name) :
+
+        original_method = None
+
+        def subproc_method(celf, args, **kwargs) :
+          # wrapper which invokes original_method with a custom
+          # preexec_fn substituted in caller-specified **kwargs.
+          # This custom preexec sets the umask, then invokes
+          # the caller-specified preexec, if any.
+
+            caller_preexec_fn = None
+
+            def my_preexec() :
+                os.umask(celf.use_umask)
+                if caller_preexec_fn != None :
+                    caller_preexec_fn()
+                #end if
+            #end my_preexec
+
+        #begin subproc_method
+            caller_preexec_fn = kwargs.get("preexec_fn")
+            pass_kwargs = dict((k, kwargs[k]) for k in kwargs if k != "preexec_fn")
+            pass_kwargs["preexec_fn"] = my_preexec
+            return original_method(args, **pass_kwargs)
+        #end subproc_method
+
+    #begin define_subproc_method
+        original_method = getattr(subprocess, name)
+        subproc_method.__name__ = name
+        subproc_method.__doc__ = original_method.__doc__
+        setattr(my_subprocess, name, classmethod(subproc_method))
+    #end define_subproc_method
+    for name in \
+        (
+            "Popen",
+            "check_call",
+            "check_output",
+        ) \
+    :
+        define_subproc_method(subprocess, name)
+    #end for
+    del name, define_subproc_method
+
+#end ReasonablePerms
 
 @enum.unique
 class SEARCH_TYPE(enum.Enum) :
@@ -356,7 +427,7 @@ class Context :
             self._display = display
             self._imgfile_names = []
             self._filename = filename
-            self._out = ReasonableUmask.call(open, filename, "wt")
+            self._out = ReasonablePerms.open_new(filename, "wt")
             self._infilename = "<API call>"
             self._linenr = None
             if display == DISPLAY.AUTO :
@@ -482,17 +553,15 @@ class Context :
             #end for
             # no need for SEARCH_TYPE.SOURCE here, since I automatically
             # expanded all RIB includes myself
-            with ReasonableUmask() :
-                aqsis_output = subprocess.check_output \
-                  (
-                    args = ["aqsis"] + extra + [self._filename],
-                    stdin = subprocess.DEVNULL,
-                    stderr = subprocess.STDOUT,
-                    universal_newlines = True,
-                    cwd = self._parent._workdir,
-                    timeout = self._parent.timeout
-                  )
-            #end with
+            aqsis_output = ReasonablePerms.subprocess.check_output \
+              (
+                args = ["aqsis"] + extra + [self._filename],
+                stdin = subprocess.DEVNULL,
+                stderr = subprocess.STDOUT,
+                universal_newlines = True,
+                cwd = self._parent._workdir,
+                timeout = self._parent.timeout
+              )
             if self._parent.debug :
                 sys.stderr.write(aqsis_output)
             #end if
@@ -800,12 +869,10 @@ class Context :
     def _init_temp(self) :
         # ensures the temporary directory structure has been created.
         if self._tempdir == None :
-            with ReasonableUmask() :
-                self._tempdir = tempfile.mkdtemp(prefix = "aleqsei-")
-                self._workdir = os.path.join(self._tempdir, "work")
-                os.mkdir(self._workdir)
-                  # separate subdirectory for files created by caller
-              #end with
+            self._tempdir = ReasonablePerms.mkdtemp(prefix = "aleqsei-")
+            self._workdir = os.path.join(self._tempdir, "work")
+            ReasonablePerms.mkdir(self._workdir)
+              # separate subdirectory for files created by caller
         #end if
     #end _init_temp
 
@@ -914,18 +981,16 @@ class Context :
     #end compile_rib_file
 
     def _compile_shader(self, filename) :
-        with ReasonableUmask() :
-            slproc = subprocess.Popen \
-              (
-                args = ("aqsl", filename),
-                stdin = subprocess.DEVNULL,
-                stdout = subprocess.PIPE,
-                stderr = subprocess.STDOUT,
-                universal_newlines = True,
-                cwd = self._workdir
-              )
-            slproc_output, _ = slproc.communicate(timeout = self.timeout)
-        #end with
+        slproc = ReasonablePerms.subprocess.Popen \
+          (
+            args = ("aqsl", filename),
+            stdin = subprocess.DEVNULL,
+            stdout = subprocess.PIPE,
+            stderr = subprocess.STDOUT,
+            universal_newlines = True,
+            cwd = self._workdir
+          )
+        slproc_output, _ = slproc.communicate(timeout = self.timeout)
         if slproc.returncode == 0 :
             if self.debug and slproc_output != None :
                 sys.stderr.write(slproc_output)
@@ -942,7 +1007,7 @@ class Context :
     def new_shader(self, name) :
         shader_filename = self._new_genfile(self._GENFILETYPE.SHADER, name)
         return \
-            self.Shader(self, shader_filename, ReasonableUmask.call(open, shader_filename, "wt"))
+            self.Shader(self, shader_filename, ReasonablePerms.open_new(shader_filename, "wt"))
     #end new_shader
 
     def compile_shader(self, name, src) :
@@ -1041,43 +1106,41 @@ class Context :
             raise TypeError("positional args must be 1 or 6 bytes objects")
         #end if
         input_files = []
-        with ReasonableUmask() :
-            for b in args :
-                filename = self._new_texfile_name()
-                if True :
-                    pngtemp = filename + ".png"
-                    pngout = open(pngtemp, "wb")
-                    pngout.write(b)
-                    pngout.flush()
-                    subprocess.check_call \
-                      (
-                        args = ("convert", pngtemp, filename),
-                        universal_newlines = False,
-                        timeout = self.timeout
-                      )
-                else :
-                    # feeding PNG byte stream directly via pipe doesn’t seem to work
-                    # -- convert complains with “insufficient image data”
-                    subprocess.check_call \
-                      (
-                        args = ("convert", "png:/dev/stdin", filename),
-                        input = b,
-                        universal_newlines = False,
-                        timeout = self.timeout
-                      )
-                #end if
-                input_files.append(filename)
-            #end for
-            teqser_output = subprocess.check_output \
-              (
-                args = self._teqser_args(kwargs, doing_envcube) + input_files + [output_file],
-                stdin = subprocess.DEVNULL,
-                stderr = subprocess.STDOUT,
-                universal_newlines = True,
-                cwd = self._workdir,
-                timeout = self.timeout
-              )
-        #end with
+        for b in args :
+            filename = self._new_texfile_name()
+            if True :
+                pngtemp = filename + ".png"
+                pngout = ReasonablePerms.open_new(pngtemp, "wb")
+                pngout.write(b)
+                pngout.flush()
+                ReasonablePerms.subprocess.check_call \
+                  (
+                    args = ("convert", pngtemp, filename),
+                    universal_newlines = False,
+                    timeout = self.timeout
+                  )
+            else :
+                # feeding PNG byte stream directly via pipe doesn’t seem to work
+                # -- convert complains with “insufficient image data”
+                ReasonablePerms.subprocess.check_call \
+                  (
+                    args = ("convert", "png:/dev/stdin", filename),
+                    input = b,
+                    universal_newlines = False,
+                    timeout = self.timeout
+                  )
+            #end if
+            input_files.append(filename)
+        #end for
+        teqser_output = ReasonablePerms.subprocess.check_output \
+          (
+            args = self._teqser_args(kwargs, doing_envcube) + input_files + [output_file],
+            stdin = subprocess.DEVNULL,
+            stderr = subprocess.STDOUT,
+            universal_newlines = True,
+            cwd = self._workdir,
+            timeout = self.timeout
+          )
         if self.debug :
             sys.stderr.write(teqser_output)
         #end if
@@ -1096,17 +1159,15 @@ class Context :
             raise TypeError("positional args must be 1 or 6 file names")
         #end if
         input_files = list(self.find_file(f, SEARCH_TYPE.TEXTURE) for f in args)
-        with ReasonableUmask() :
-            teqser_output = subprocess.check_output \
-              (
-                args = self._teqser_args(kwargs, doing_envcube) + input_files + [output_file],
-                stdin = subprocess.DEVNULL,
-                stderr = subprocess.STDOUT,
-                universal_newlines = True,
-                cwd = self._workdir,
-                timeout = self.timeout
-              )
-        #end with
+        teqser_output = ReasonablePerms.subprocess.check_output \
+          (
+            args = self._teqser_args(kwargs, doing_envcube) + input_files + [output_file],
+            stdin = subprocess.DEVNULL,
+            stderr = subprocess.STDOUT,
+            universal_newlines = True,
+            cwd = self._workdir,
+            timeout = self.timeout
+          )
         if self.debug :
             sys.stderr.write(teqser_output)
         #end if
